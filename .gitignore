@@ -1,0 +1,20 @@
+# Secrets
+.env
+credentials.json
+token.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Data
+*.db
+*.db-wal
+*.db-shm
+backups/
+
+# Local Claude Code settings (machine-specific permission overrides)
+.claude/settings.local.json
