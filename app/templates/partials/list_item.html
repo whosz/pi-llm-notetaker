@@ -1,0 +1,22 @@
+<li id="item-{{ item.id }}" class="flex items-center gap-2 py-2">
+  <input
+    type="checkbox"
+    class="checkbox-circle"
+    id="item-check-{{ item.id }}"
+    {%
+    if
+    item.checked
+    %}checked{%
+    endif
+    %}
+    hx-post="/items/{{ item.id }}/toggle"
+    hx-trigger="change"
+    hx-target="#item-{{ item.id }}"
+    hx-swap="outerHTML"
+  />
+  <label
+    for="item-check-{{ item.id }}"
+    class="{{ 'line-through text-muted-foreground' if item.checked else '' }}"
+    >{{ item.text }}</label
+  >
+</li>

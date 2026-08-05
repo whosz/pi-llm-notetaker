@@ -1,0 +1,29 @@
+{% extends "base.html" %} {% block content %}
+<form
+  class="card mb-4"
+  hx-post="/notes"
+  hx-target="#notes-list"
+  hx-swap="afterbegin"
+  hx-on::after-request="this.reset()"
+>
+  <section>
+    <label class="label sr-only" for="new-note-text">New note</label>
+    <textarea
+      class="input"
+      id="new-note-text"
+      name="text"
+      rows="2"
+      placeholder="➕ New note… e.g. buy milk and bread"
+      required
+      autofocus
+    ></textarea>
+  </section>
+  <footer>
+    <button type="submit" class="btn w-full">Add note</button>
+  </footer>
+</form>
+
+<div id="notes-list" class="grid gap-4">
+  {% include "partials/notes_list.html" %}
+</div>
+{% endblock %}

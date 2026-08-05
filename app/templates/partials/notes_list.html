@@ -1,0 +1,14 @@
+{% for note in notes %} {% include "partials/note_card.html" %} {% else %}
+<p class="text-muted-foreground">No notes yet.</p>
+{% endfor %} {% if notes|length == limit %}
+<button
+  type="button"
+  class="btn w-full"
+  data-variant="outline"
+  hx-get="/notes-list?{% if type %}type={{ type }}&{% endif %}{% if q %}q={{ q }}&{% endif %}offset={{ offset + limit }}&limit={{ limit }}"
+  hx-target="this"
+  hx-swap="outerHTML"
+>
+  Load more
+</button>
+{% endif %}
