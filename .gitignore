@@ -2,6 +2,9 @@
 .env
 credentials.json
 token.json
+.htpasswd
+*.pem
+*.key
 
 # Python
 __pycache__/

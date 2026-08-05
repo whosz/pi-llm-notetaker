@@ -76,7 +76,10 @@ until they're met.
 
 ## What NOT to do
 
-- Don't add OAuth authentication to the site itself (a later stage; access is protected by Tailscale).
+- Don't add login/session/OAuth logic to the FastAPI app itself. Access control is
+  handled outside the app: Tailscale for private access, or nginx (`auth_basic` +
+  a Cloudflare Origin Certificate) in front of it for public access — see
+  `docs/05-deployment.md`.
 - Don't send note contents to any external API other than the explicitly configured Google APIs.
 - Don't commit `credentials.json`, `token.json`, or `.env`.
 - Don't optimize prematurely — get the working vertical slice first (stages 1–3), then integrations.

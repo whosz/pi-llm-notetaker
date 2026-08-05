@@ -38,7 +38,11 @@ Logs: `journalctl -u pi-llm-notetaker -f`
 
 ## Accessing the site
 
-**Recommendation: Tailscale instead of exposing the Pi to the internet.**
+Two options — use either, or both (Tailscale for admin access even if the site is
+also public).
+
+### Private: Tailscale
+
 No open ports, encrypted, works on your phone. After installation
 (see [01-pi-setup.md](01-pi-setup.md)) the site is reachable at
 `http://pi-llm-notetaker:8000` from any of your devices on the tailnet.
@@ -46,23 +50,51 @@ No open ports, encrypted, works on your phone. After installation
 Bonus: [Tailscale HTTPS / MagicDNS](https://tailscale.com/kb/1153/enabling-https) gives you
 a free certificate, so you can add the site "to the home screen" on your phone like a PWA.
 
-### Optional: nginx as a reverse proxy
+### Public: router port-forward + nginx + Cloudflare
 
-Only needed once you want port 80/443, compression, and serving static files without Python:
+Notes are personal data, so exposing the app to the internet needs TLS and
+authentication in front of it — **neither belongs in the FastAPI app itself**, both
+live in nginx.
 
-```bash
-sudo apt install -y nginx
-sudo cp deploy/nginx-pi-llm-notetaker.conf /etc/nginx/sites-available/pi-llm-notetaker
-sudo ln -s /etc/nginx/sites-available/pi-llm-notetaker /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
+1. **Router**: forward external `80` and `443` to the Pi's LAN IP. Don't forward `22`
+   (SSH) — keep that reachable only over Tailscale/LAN.
+2. **Cloudflare DNS**: point an `A` record (e.g. `notes.yourdomain.com`) at your public
+   IP, **proxied** (orange cloud) — hides your home IP and adds Cloudflare's edge
+   protections for free.
+3. **nginx**, installed as a reverse proxy in front of uvicorn:
+   ```bash
+   sudo apt install -y nginx apache2-utils
+   sudo cp deploy/nginx-pi-llm-notetaker.conf /etc/nginx/sites-available/pi-llm-notetaker
+   sudo ln -s /etc/nginx/sites-available/pi-llm-notetaker /etc/nginx/sites-enabled/
+   ```
+4. **TLS**: since Cloudflare already terminates TLS at the edge, skip
+   Let's Encrypt/certbot (one less renewal timer to babysit) — generate a free
+   **Origin Certificate** in the Cloudflare dashboard (SSL/TLS → Origin Server),
+   save it as `/etc/ssl/pi-llm-notetaker/origin.pem` + `origin.key` on the Pi, and
+   reference both in the nginx `server` block. Set Cloudflare's SSL/TLS mode to
+   **Full (strict)**.
+5. **HTTP Basic Auth** — the app never sees credentials, nginx blocks unauthenticated
+   requests before they reach it:
+   ```bash
+   sudo htpasswd -c /etc/nginx/.htpasswd yourusername
+   ```
+   In the nginx `server` block:
+   ```nginx
+   auth_basic "PiLLm Note Taker";
+   auth_basic_user_file /etc/nginx/.htpasswd;
+   ```
+   Basic Auth sends credentials base64-encoded on every request — fine over HTTPS
+   (Cloudflare + the Origin Certificate), **never** serve it over plain HTTP.
+6. **Firewall**: only nginx should be reachable from the internet.
+   ```bash
+   sudo ufw allow 80,443/tcp
+   sudo ufw enable
+   ```
+   Port 8000 (uvicorn) stays LAN/Tailscale-only — nginx is the only public entry point.
+7. `sudo nginx -t && sudo systemctl reload nginx`
 
-📚 Tutorial: [nginx reverse proxy — documentation](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/)
-
-> If you still want access from the public internet without a VPN — use
-> [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
-> (free, no port opening needed). In that case **make sure** to add authentication
-> (Cloudflare Access, or the additional plan stage: in-app login).
+📚 Tutorials: [nginx reverse proxy](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/) ·
+[Cloudflare Origin CA certificates](https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/)
 
 ## Backups
 
@@ -89,6 +121,7 @@ sudo systemctl restart pi-llm-notetaker
 
 - [ ] `sudo reboot` → after 2 minutes the site works with no manual action
 - [ ] `systemctl status pi-llm-notetaker pi-llm-notetaker-voice ollama` — all services `active (running)`
-- [ ] Site reachable from your phone (Tailscale)
+- [ ] Site reachable from your phone (Tailscale, and/or `https://notes.yourdomain.com` if public)
+- [ ] If public: `curl -I https://notes.yourdomain.com` without credentials returns `401`
 - [ ] Backup in cron, restored once as a test
 - [ ] A "test meeting tomorrow at noon" note shows up in Google Calendar
