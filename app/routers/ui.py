@@ -73,10 +73,15 @@ async def note_card(request: Request, note_id: int, db: DbSession) -> Response:
 
 @router.patch("/notes/{note_id}")
 async def update_note(
-    request: Request, note_id: int, db: DbSession, raw_text: Annotated[str, Form()]
+    request: Request,
+    note_id: int,
+    db: DbSession,
+    raw_text: Annotated[str, Form()],
+    type: Annotated[str, Form()] = "",
 ) -> Response:
     note = await get_note_or_404(note_id, db)
     note.raw_text = raw_text
+    note.type = type or None
     await db.commit()
     await db.refresh(note)
     return templates.TemplateResponse(

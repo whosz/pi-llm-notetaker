@@ -1,3 +1,14 @@
+{% from "basecoat/dialog.html.jinja" import dialog %}
+{% from "basecoat/dropdown-menu.html.jinja" import dropdown_menu %}
+{% set chevron_icon %}<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>{% endset %}
+{% set edit_footer %}
+<button type="button" class="btn" data-variant="outline" onclick="this.closest('dialog').close()">Cancel</button>
+<button type="submit" form="edit-form-{{ note.id }}" class="btn">Save</button>
+{% endset %}
+{% set delete_footer %}
+<button type="button" class="btn" data-variant="outline" onclick="this.closest('dialog').close()">Cancel</button>
+<button type="button" class="btn" data-variant="destructive" hx-delete="/notes/{{ note.id }}" hx-target="#note-{{ note.id }}" hx-swap="outerHTML">Delete</button>
+{% endset %}
 <div
   class="card"
   id="note-{{ note.id }}"
@@ -15,10 +26,38 @@
       "error" %} ❌ {{ note.error_msg or "Classification failed" }} {% else %}
       {{ note.created_at.strftime("%Y-%m-%d %H:%M") }} {% endif %}
     </p>
-    <div class="card-action">
+    <div class="card-action flex items-center gap-2">
       {% if note.type %}
       <span class="badge" data-variant="secondary">{{ note.type }}</span>
       {% endif %}
+      {% call dropdown_menu(
+        trigger=chevron_icon,
+        id="note-" ~ note.id ~ "-actions",
+        trigger_attrs={"class": "btn", "data-variant": "ghost", "data-size": "icon", "aria-label": "Note actions"},
+        popover_attrs={"data-align": "end"}
+      ) %}
+      {% if note.status == "error" %}
+      <div
+        role="menuitem"
+        hx-post="/notes/{{ note.id }}/retry"
+        hx-target="#note-{{ note.id }}"
+        hx-swap="outerHTML"
+      >
+        🔁 Retry
+      </div>
+      {% endif %}
+      <div role="menuitem" onclick="document.getElementById('edit-{{ note.id }}').showModal()">
+        Edit
+      </div>
+      <hr role="separator" />
+      <div
+        role="menuitem"
+        data-variant="destructive"
+        onclick="document.getElementById('delete-{{ note.id }}').showModal()"
+      >
+        Delete
+      </div>
+      {% endcall %}
     </div>
   </header>
   <section>
@@ -37,117 +76,35 @@
     <p>{{ note.raw_text }}</p>
     {% endif %}
   </section>
-  <footer class="flex gap-2">
-    {% if note.status == "error" %}
-    <button
-      type="button"
-      class="btn"
-      data-size="sm"
-      hx-post="/notes/{{ note.id }}/retry"
-      hx-target="#note-{{ note.id }}"
-      hx-swap="outerHTML"
-    >
-      🔁 Retry
-    </button>
-    {% endif %}
-    <button
-      type="button"
-      class="btn"
-      data-variant="outline"
-      data-size="sm"
-      onclick="document.getElementById('edit-{{ note.id }}').showModal()"
-    >
-      Edit
-    </button>
-    <button
-      type="button"
-      class="btn"
-      data-variant="destructive"
-      data-size="sm"
-      onclick="document.getElementById('delete-{{ note.id }}').showModal()"
-    >
-      Delete
-    </button>
-  </footer>
 
-  <dialog
-    id="edit-{{ note.id }}"
-    class="dialog"
-    aria-labelledby="edit-{{ note.id }}-title"
-    onclick="if (event.target === this) this.close()"
+  {% call dialog(id="edit-" ~ note.id, title="Edit note", footer=edit_footer) %}
+  <form
+    id="edit-form-{{ note.id }}"
+    class="grid gap-3"
+    hx-patch="/notes/{{ note.id }}"
+    hx-target="#note-{{ note.id }}"
+    hx-swap="outerHTML"
   >
-    <div class="sm:max-w-sm">
-      <header>
-        <h2 id="edit-{{ note.id }}-title">Edit note</h2>
-      </header>
-      <section>
-        <form
-          id="edit-form-{{ note.id }}"
-          class="grid gap-3"
-          hx-patch="/notes/{{ note.id }}"
-          hx-target="#note-{{ note.id }}"
-          hx-swap="outerHTML"
-        >
-          <div class="grid gap-2">
-            <label class="label" for="edit-text-{{ note.id }}">Text</label>
-            <textarea
-              class="input"
-              id="edit-text-{{ note.id }}"
-              name="raw_text"
-              rows="3"
-            >
+    <div class="grid gap-2">
+      <label class="label" for="edit-text-{{ note.id }}">Text</label>
+      <textarea class="textarea" id="edit-text-{{ note.id }}" name="raw_text" rows="3">
 {{ note.raw_text }}</textarea
-            >
-          </div>
-        </form>
-      </section>
-      <footer class="gap-2">
-        <button
-          type="button"
-          class="btn"
-          data-variant="outline"
-          onclick="this.closest('dialog').close()"
-        >
-          Cancel
-        </button>
-        <button type="submit" form="edit-form-{{ note.id }}" class="btn">
-          Save
-        </button>
-      </footer>
+      >
     </div>
-  </dialog>
+    <div class="grid gap-2">
+      <label class="label" for="edit-type-{{ note.id }}">Category</label>
+      <select class="select w-full" id="edit-type-{{ note.id }}" name="type">
+        <option value="" {{ "selected" if not note.type else "" }}>Unclassified</option>
+        {% for value, label in [("shopping", "Shopping"), ("meeting", "Meeting"),
+        ("task", "Task"), ("quote", "Quote"), ("idea", "Idea"), ("note", "Note")] %}
+        <option value="{{ value }}" {{ "selected" if note.type == value else "" }}>
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+  {% endcall %}
 
-  <dialog
-    id="delete-{{ note.id }}"
-    class="dialog"
-    aria-labelledby="delete-{{ note.id }}-title"
-    onclick="if (event.target === this) this.close()"
-  >
-    <div class="sm:max-w-sm">
-      <header>
-        <h2 id="delete-{{ note.id }}-title">Delete this note?</h2>
-        <p>This can't be undone.</p>
-      </header>
-      <footer class="gap-2">
-        <button
-          type="button"
-          class="btn"
-          data-variant="outline"
-          onclick="this.closest('dialog').close()"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-variant="destructive"
-          hx-delete="/notes/{{ note.id }}"
-          hx-target="#note-{{ note.id }}"
-          hx-swap="outerHTML"
-        >
-          Delete
-        </button>
-      </footer>
-    </div>
-  </dialog>
+  {{ dialog(id="delete-" ~ note.id, title="Delete this note?", description="This can't be undone.", footer=delete_footer) }}
 </div>

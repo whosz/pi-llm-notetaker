@@ -56,6 +56,23 @@ async def test_edit_and_delete_note(client):
     assert resp.status_code == 404
 
 
+async def test_edit_note_changes_category(client):
+    resp = await client.post("/notes", data={"text": "buy milk"})
+    note_id = resp.text.split('id="note-')[1].split('"')[0]
+
+    resp = await client.patch(
+        f"/notes/{note_id}", data={"raw_text": "buy milk", "type": "shopping"}
+    )
+    assert resp.status_code == 200
+    assert '<span class="badge" data-variant="secondary">shopping</span>' in resp.text
+
+    resp = await client.patch(
+        f"/notes/{note_id}", data={"raw_text": "buy milk", "type": ""}
+    )
+    assert resp.status_code == 200
+    assert "badge" not in resp.text
+
+
 async def test_search_filters_notes_list(client):
     await client.post("/notes", data={"text": "buy milk"})
     await client.post("/notes", data={"text": "call dentist"})

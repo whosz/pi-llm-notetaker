@@ -81,15 +81,19 @@
   border-width: 0;
 }
 
+/* The dialog.html.jinja macro's inner wrapper <div> has no attrs/class hook
+   (unlike the hand-written docs examples, which add `sm:max-w-sm` directly
+   to it) — so dialogs render full-bleed above the sm breakpoint unless we
+   size that wrapper ourselves. */
 @media (min-width: 40rem) {
-  .sm\:max-w-sm {
+  .dialog > div {
     max-width: 24rem;
   }
 }
 
-/* Violet accent + tab nav / pill search / circular checkboxes, to match the
-   reference look (task-app style: violet checkboxes, underline tabs, round
-   search bar). Overrides Basecoat's default neutral --primary. */
+/* Violet accent, applied through Basecoat's own theming variables (the
+   documented way to recolor the design system) rather than overriding any
+   component's structural CSS. */
 :root {
   --primary: #7c3aed;
   --primary-foreground: #ffffff;
@@ -101,54 +105,6 @@
   --ring: #a78bfa;
 }
 
-.tab-nav {
-  border-bottom: 1px solid var(--color-border);
-}
-.tab-nav a {
-  display: inline-block;
-  padding-block: 0.5rem;
-  margin-bottom: -1px;
-  color: var(--color-muted-foreground);
-  font-weight: 500;
-  border-bottom: 2px solid transparent;
-}
-.tab-nav a.active {
-  color: var(--color-foreground);
-  font-weight: 600;
-  border-bottom-color: var(--color-foreground);
-}
-
-.search-pill {
-  border-radius: 9999px;
-  padding-inline-end: 2.5rem;
-}
-.search-icon {
-  pointer-events: none;
-  position: absolute;
-  inset-inline-end: 0.75rem;
-  top: 50%;
-  translate: 0 -50%;
-  color: var(--color-muted-foreground);
-}
-
-.checkbox-circle {
-  appearance: none;
-  width: 1.375rem;
-  height: 1.375rem;
-  border-radius: 9999px;
-  border: 2px solid var(--color-primary);
-  flex-shrink: 0;
-  cursor: pointer;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 60%;
-}
-.checkbox-circle:checked {
-  border-color: var(--color-muted-foreground);
-  background-color: var(--color-muted);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
-}
-
 .divide-list > li {
   border-bottom: 1px solid var(--color-border);
 }
@@ -156,6 +112,9 @@
   border-bottom: none;
 }
 
-.relative {
-  position: relative;
+/* .card has overflow:hidden by default (for edge-to-edge images, which we
+   never use) — that would clip the real dropdown-menu popover instead of
+   letting it float above surrounding content. */
+.card {
+  overflow: visible;
 }
