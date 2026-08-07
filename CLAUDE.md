@@ -55,7 +55,8 @@ until they're met.
   ├── sync/               # Google integration (calendar.py, tasks.py, auth.py)
   ├── routers/            # endpoints (notes.py, lists.py, sync.py, ui.py)
   ├── templates/          # Jinja2, incl. templates/basecoat/ (vendored component macros)
-  └── static/             # CSS (incl. basecoat.css), htmx.min.js, basecoat JS (vendored locally!)
+  └── static/             # app.css (ours), htmx.min.js, static/basecoat/ (vendored CSS+JS,
+                           #   mirrors the basecoat-css package's own dist/ layout)
   voice/                  # separate voice assistant process (stage 6)
   ├── main.py            # state machine OFF→IDLE→…→FEEDBACK
   ├── hw/                # button, led, audio (gpiozero, behind interfaces)

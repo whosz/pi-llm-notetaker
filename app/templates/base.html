@@ -5,45 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}PiLLm Note Taker{% endblock %}</title>
     <script>
-      if (matchMedia("(prefers-color-scheme: dark)").matches) {
-        document.documentElement.classList.add("dark");
-      }
+      (() => {
+        try {
+          const stored = localStorage.getItem("themeMode");
+          if (
+            stored
+              ? stored === "dark"
+              : matchMedia("(prefers-color-scheme: dark)").matches
+          ) {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (_) {}
+      })();
     </script>
-    <link rel="stylesheet" href="/static/basecoat.css?v={{ asset_v }}" />
+    <link rel="stylesheet" href="/static/basecoat/basecoat.css?v={{ asset_v }}" />
     <link rel="stylesheet" href="/static/app.css?v={{ asset_v }}" />
     <script src="/static/htmx.min.js" defer></script>
-    <script src="/static/basecoat.min.js" defer></script>
-    <script src="/static/dropdown-menu.min.js" defer></script>
+    <script src="/static/basecoat/js/basecoat.min.js" defer></script>
+    <script src="/static/basecoat/js/dropdown-menu.min.js" defer></script>
   </head>
   <body class="mx-auto max-w-2xl p-4">
     <header class="mb-4">
-      <div class="input-group mb-4">
-        <input
-          type="search"
-          name="q"
-          placeholder="Find notes"
-          value="{{ q or '' }}"
-          hx-get="/notes-list{% if type %}?type={{ type }}{% endif %}"
-          hx-trigger="keyup changed delay:300ms"
-          hx-target="#notes-list"
-          hx-swap="innerHTML"
-        />
-        <span data-align="start" aria-hidden="true">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-        </span>
+      <div class="flex gap-2 mb-4">
+        <div class="input-group">
+          <input
+            type="search"
+            name="q"
+            placeholder="Find notes"
+            value="{{ q or '' }}"
+            hx-get="/notes-list{% if type %}?type={{ type }}{% endif %}"
+            hx-trigger="keyup changed delay:300ms"
+            hx-target="#notes-list"
+            hx-swap="innerHTML"
+          />
+          <span data-align="start" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </span>
+        </div>
+        <button
+          type="button"
+          aria-label="Toggle dark mode"
+          onclick="window.basecoat.theme.toggle()"
+          class="btn"
+          data-variant="outline"
+          data-size="icon"
+        >
+          <span class="hidden dark:block">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></svg>
+          </span>
+          <span class="block dark:hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" /></svg>
+          </span>
+        </button>
       </div>
       <div class="tabs">
         <nav role="tablist" aria-orientation="horizontal" data-variant="line">

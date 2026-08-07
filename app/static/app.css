@@ -81,6 +81,19 @@
   border-width: 0;
 }
 
+.hidden {
+  display: none;
+}
+.block {
+  display: block;
+}
+.dark .dark\:block {
+  display: block;
+}
+.dark .dark\:hidden {
+  display: none;
+}
+
 /* The dialog.html.jinja macro's inner wrapper <div> has no attrs/class hook
    (unlike the hand-written docs examples, which add `sm:max-w-sm` directly
    to it) — so dialogs render full-bleed above the sm breakpoint unless we
@@ -91,18 +104,18 @@
   }
 }
 
-/* Violet accent, applied through Basecoat's own theming variables (the
+/* Brand accent, applied through Basecoat's own theming variables (the
    documented way to recolor the design system) rather than overriding any
    component's structural CSS. */
 :root {
-  --primary: #7c3aed;
+  --primary: #4e33ff;
   --primary-foreground: #ffffff;
-  --ring: #7c3aed;
+  --ring: #4e33ff;
 }
 .dark {
-  --primary: #a78bfa;
-  --primary-foreground: #1e1b2e;
-  --ring: #a78bfa;
+  --primary: #8a7cff;
+  --primary-foreground: #1a1533;
+  --ring: #8a7cff;
 }
 
 .divide-list > li {
