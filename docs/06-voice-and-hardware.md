@@ -50,8 +50,23 @@ firmware** — same WM8960 codec chip, zero compilation:
    amixer -c N sset 'Left Output Mixer PCM' on
    amixer -c N sset 'Right Output Mixer PCM' on
    ```
-   (replace `N` with the card number from `aplay -l`; persist with `sudo alsactl store`
-   once you're happy with the mixer settings, so it survives a reboot)
+5. **✅ Confirmed audible** — the board has two independent output paths (its own
+   `'Speaker'` and `'Headphone'` mixer controls, matching the WM8960's SPK_* vs HP_*
+   pins). Both are live simultaneously by default. To get sound out of the HAT's
+   **speaker connector only** (not the headphone jack):
+   ```bash
+   amixer -c N sset 'Headphone' 0%        # mute headphone/headset output
+   amixer -c N sset 'Speaker' 100%        # max speaker volume
+   amixer -c N sset 'Speaker DC' 5        # Class-D boost, max (both 0-5 range)
+   amixer -c N sset 'Speaker AC' 5
+   ```
+   If that's still not loud enough: there's a **separate digital `'Playback'` gain
+   stage** (the DAC volume, upstream of the analog Speaker path above) that defaults
+   to 84%, not 100% — `amixer -c N sset 'Playback' 100%` gives real extra headroom.
+   A generated test melody, and a full ~38s piano MIDI file rendered with `timidity`,
+   both played back correctly and audibly from the speaker only.
+   Persist with `sudo alsactl store` once you're happy with the mixer settings, so
+   they survive a reboot (replace `N` above with the card number from `aplay -l`).
 
 **⚠️ Open issue: mic capture is not producing real audio.** The card enumerates
 correctly for capture and the mixer is fully controllable (confirmed via `amixer -c N`),
@@ -59,9 +74,8 @@ but recordings are digital silence (`max≈3/32768`) after a brief power-on tran
 the first ~1 second, regardless of speech, volume, mic input boost (+29 dB), or ADC
 capture gain (+30 dB) — all tried, none changed the result. Also tried powering the HAT
 separately via its onboard micro-USB port (in case GPIO-only power wasn't enough for
-the analog/mic-bias side) — no change. The speaker output path (see the gotcha above)
-was fixed and a test tone played with no ALSA errors, but this hasn't been confirmed
-audible by ear either.
+the analog/mic-bias side) — no change. Output and input are on the same codec/overlay,
+so this is specifically a capture-path (mic bias?) issue, not a general driver problem.
 
 Card number also isn't stable across boots (seen both as card 2 and card 3) — resolve
 it fresh each time with `aplay -l`/`arecord -l`, don't hardcode it.
@@ -192,8 +206,8 @@ Additional performance rules (implemented in plan stage 6):
 
 - [x] `arecord -l` sees the microphone (card enumerates) — ⚠️ but recorded audio is
       silence, see the open issue above; not actually working yet
-- [ ] `aplay` plays sound on the selected output — mixer routing fixed (see gotcha
-      above) and test tone played with no ALSA errors, but not confirmed audible
+- [x] `aplay` plays sound on the selected output — confirmed audible, out of the
+      **speaker** connector specifically (headphone output muted), see step 5 above
 - [ ] The button changes state (test with a gpiozero script); the RGB LED shows red, green,
       and blue individually, then does `.pulse()` — confirms wiring and cathode/anode polarity
       (N/A if using the HAT's own button/LEDs — that's separate SPI/GPIO work, still open)
