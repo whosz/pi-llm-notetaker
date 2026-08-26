@@ -13,12 +13,69 @@ into the pins like an LED. Realistic options (from simplest):
 |---|---|---|---|
 | **A. USB microphone** | ~$10–20 | ⭐ easy | Zero soldering or configuration. E.g. a mini USB mic or a conference mic with noise cancellation. **Recommended starting point.** |
 | **B. I2S microphone on GPIO pins** (e.g. **INMP441**, ~$5) | cheap | ⭐⭐⭐ | "Real" wiring to the pins, requires overlay configuration and sometimes soldering headers |
-| **C. ReSpeaker 2-Mics Pi HAT** (~$20–30) | medium | ⭐⭐ | GPIO hat: **2 microphones + button + 3 RGB LEDs (APA102) + speaker output, all in one**. Perfectly covers this project's requirements |
+| **C. ReSpeaker 2-Mics Pi HAT** (~$20–30) | medium | ⭐⭐ | GPIO hat: **2 microphones + button + 3 RGB LEDs (APA102) + speaker output, all in one**. Perfectly covers this project's requirements. **Partially working** on a Keyestudio clone (see below) — card enumerates and mixer is controllable, but mic capture is not yet producing real audio |
 
 > 💡 If you want minimum hassle — **option C (ReSpeaker HAT)** gives you everything
 > this project needs right away (microphone, button, LEDs, audio out).
 > If you like building it yourself — option A (USB mic) + button and LED from the table below.
 > 📚 [ReSpeaker 2-Mics Pi HAT documentation](https://wiki.seeedstudio.com/ReSpeaker_2_Mics_Pi_HAT/)
+
+### Option C in practice: Keyestudio/ReSpeaker 2-Mics HAT, mainline overlay (no driver compile)
+
+Tested on a **Keyestudio 5V ReSpeaker 2-Mic Pi HAT V1.0** (a hardware-compatible clone of
+Seeed's ReSpeaker 2-Mics Pi HAT — same WM8960 codec) on Raspberry Pi OS / Debian 13
+"trixie", kernel `6.18.x`.
+
+The community driver (`respeaker/seeed-voicecard`, or the `HinTak/seeed-voicecard` fork
+recommended for newer Debian) builds an out-of-tree kernel module per kernel version —
+as of writing, its newest ready-made branch targets kernel **v6.13**, several versions
+behind what current Raspberry Pi OS ships. Rather than fight a DKMS build against a
+kernel it wasn't updated for (or fall back to `--compat-kernel`, which downgrades the
+kernel package), **use the `wm8960-soundcard` overlay that ships in Raspberry Pi's own
+firmware** — same WM8960 codec chip, zero compilation:
+
+1. Add to `/boot/firmware/config.txt`:
+   ```ini
+   dtoverlay=wm8960-soundcard
+   ```
+2. `sudo reboot`
+3. Confirm the card shows up for **both** playback and capture:
+   ```bash
+   aplay -l   # → card N: wm8960soundcard [wm8960-soundcard], ...
+   arecord -l # → same card, capture side
+   ```
+4. **Gotcha:** the codec's internal DAC→output routing switches default to **off**, so
+   the speaker/headphone output stays silent even at full volume until you enable them:
+   ```bash
+   amixer -c N sset 'Left Output Mixer PCM' on
+   amixer -c N sset 'Right Output Mixer PCM' on
+   ```
+   (replace `N` with the card number from `aplay -l`; persist with `sudo alsactl store`
+   once you're happy with the mixer settings, so it survives a reboot)
+
+**⚠️ Open issue: mic capture is not producing real audio.** The card enumerates
+correctly for capture and the mixer is fully controllable (confirmed via `amixer -c N`),
+but recordings are digital silence (`max≈3/32768`) after a brief power-on transient in
+the first ~1 second, regardless of speech, volume, mic input boost (+29 dB), or ADC
+capture gain (+30 dB) — all tried, none changed the result. Also tried powering the HAT
+separately via its onboard micro-USB port (in case GPIO-only power wasn't enough for
+the analog/mic-bias side) — no change. The speaker output path (see the gotcha above)
+was fixed and a test tone played with no ALSA errors, but this hasn't been confirmed
+audible by ear either.
+
+Card number also isn't stable across boots (seen both as card 2 and card 3) — resolve
+it fresh each time with `aplay -l`/`arecord -l`, don't hardcode it.
+
+Current hypothesis: the Keyestudio clone may differ from Seeed's original ReSpeaker
+schematic in a way the generic `wm8960-soundcard` overlay (built for a different board,
+Waveshare's WM8960 HAT) doesn't account for — e.g. mic bias routing. Needs a hands-on
+session (multimeter on the mic bias/input pins) rather than further blind remote mixer
+tweaking. Not blocking — plan stage 6 (this HAT's button + LEDs) is unstarted anyway.
+
+This overlay only covers **audio** (both mics + speaker output) — it does not know
+about the HAT's physical **button** or its **3 APA102 RGB LEDs**, which are a separate
+SPI/GPIO subsystem unrelated to the WM8960 codec. Wiring/driving those is still open —
+see plan stage 6.
 
 ## Audio output (signals + voice feedback)
 
@@ -133,10 +190,13 @@ Additional performance rules (implemented in plan stage 6):
 
 ## Checklist
 
-- [ ] `arecord -l` sees the microphone; test recording: `arecord -d 3 test.wav && aplay test.wav`
-- [ ] `aplay` plays sound on the selected output
+- [x] `arecord -l` sees the microphone (card enumerates) — ⚠️ but recorded audio is
+      silence, see the open issue above; not actually working yet
+- [ ] `aplay` plays sound on the selected output — mixer routing fixed (see gotcha
+      above) and test tone played with no ALSA errors, but not confirmed audible
 - [ ] The button changes state (test with a gpiozero script); the RGB LED shows red, green,
       and blue individually, then does `.pulse()` — confirms wiring and cathode/anode polarity
+      (N/A if using the HAT's own button/LEDs — that's separate SPI/GPIO work, still open)
 - [ ] The STT model is downloaded and tested on a recording
 - [ ] Piper speaks a test sentence: `echo "Hi, this is your Pi" | piper ... | aplay`
 
