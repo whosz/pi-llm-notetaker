@@ -3,6 +3,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import DbSession
+from app.llm.worker import enqueue
 from app.models import ListItem, Note
 from app.schemas import ListItemOut, ListItemUpdate, NoteCreate, NoteOut, NoteUpdate
 
@@ -33,6 +34,7 @@ async def create_note(payload: NoteCreate, db: DbSession) -> Note:
     db.add(note)
     await db.commit()
     await db.refresh(note)
+    await enqueue(note.id)
     return note
 
 

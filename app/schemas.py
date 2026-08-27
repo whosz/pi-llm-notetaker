@@ -42,3 +42,14 @@ class NoteOut(BaseModel):
 
 class ListItemUpdate(BaseModel):
     checked: bool
+
+
+class LLMClassification(BaseModel):
+    """Parsed, validated shape of the LLM's classification response."""
+
+    type: NoteType = "note"
+    title: str = ""
+    items: list[str] = []
+    datetime: str | None = None
+    due: str | None = None
+    confidence: float = 0.0

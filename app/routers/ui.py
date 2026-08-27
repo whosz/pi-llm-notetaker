@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Request, Response
 
 from app.db import DbSession
+from app.llm.worker import enqueue
 from app.models import ListItem, Note
 from app.routers.notes import build_notes_stmt, get_note_or_404
 from app.templating import templates
@@ -58,6 +59,7 @@ async def create_note(
     db.add(note)
     await db.commit()
     await db.refresh(note)
+    await enqueue(note.id)
     return templates.TemplateResponse(
         request, "partials/note_card.html", {"note": note}
     )
@@ -104,6 +106,7 @@ async def retry_note(request: Request, note_id: int, db: DbSession) -> Response:
     note.error_msg = None
     await db.commit()
     await db.refresh(note)
+    await enqueue(note.id)
     return templates.TemplateResponse(
         request, "partials/note_card.html", {"note": note}
     )
