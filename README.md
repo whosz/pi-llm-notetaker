@@ -2,12 +2,25 @@
 
 A note-taking and organizing system that runs **entirely locally on a Raspberry Pi 4**:
 
-- 🎙️ Say a note out loud after your own wake phrase (like "OK Google") — listening
-  mode is toggled with a physical button, an LED and a sound give full feedback —
-  or 📝 type a note on the web page
+- 🎙️ Press a physical button on the Pi and say a note out loud — an LED and a sound
+  give feedback while it's listening — or 📝 type a note on the web page
 - 🧠 A local LLM (Ollama) classifies and structures it: *shopping list, quote, idea, task, meeting…*
 - 🌐 Notes land on a website hosted on the Pi (browsing, editing, lists)
 - 📅 Selected types sync to Google: **Calendar** (meetings) and **Tasks** (lists/tasks)
+
+## Status
+
+| Stage | What | State |
+|---|---|---|
+| 1–3 | Backend, LLM pipeline, web frontend | ✅ Done |
+| 5 | Deploy: both services auto-start on boot (`systemd`) | 🟡 Partial — backup/nginx/`/healthz` still open, see [docs/05-deployment.md](docs/05-deployment.md) |
+| 6 | Voice: button → record → STT → LLM | 🟡 Prototype only (`voice/button_listen_demo.py`) — press-and-record for a fixed 10s, **no wake word, no TTS, no state machine** yet |
+| 4, 7 | Google sync, setup wizard | ⬜ Not started |
+
+The button-triggered voice flow works end-to-end on real hardware (Keyestudio/ReSpeaker
+2-Mics HAT + a USB mic — the HAT's own onboard mics don't work, see
+[docs/06-voice-and-hardware.md](docs/06-voice-and-hardware.md)) and survives a reboot,
+but it's explicitly a stepping stone toward stage 6, not stage 6 itself.
 
 ## Architecture
 
