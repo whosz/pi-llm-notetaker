@@ -3,15 +3,23 @@ duration from a USB mic -> transcribe with Vosk -> POST the text to the app
 as a new note (which the stage-2 pipeline then classifies automatically).
 
 This is a **prototype**, not the real stage 6 voice service — no wake word,
-no LED feedback, no TTS, no state machine. Just to try out button + mic + LLM
-together. See plan/06-voice-service.md for the real thing.
+no TTS, no state machine. Has LED + start/end beep feedback while recording.
+See plan/06-voice-service.md for the real thing.
 
-Usage (on the Pi):
-    uv run --with gpiozero --with vosk python3 voice/button_listen_demo.py
+Usage (on the Pi, from the repo root):
+    PYTHONUNBUFFERED=1 uv run --with gpiozero --with vosk --with lgpio --with apa102-pi \
+        python3 -m voice.button_listen_demo
+
+Run as `-m voice.button_listen_demo` (not as a bare script path) so the
+`voice.hw.leds` import resolves. PYTHONUNBUFFERED matters when redirecting
+output to a log file (e.g. via nohup/setsid) — otherwise print() output sits
+in a block buffer and doesn't show up until it fills, making the script look
+hung.
 
 Requires: a Vosk model at ~/voice-test/model (see docs/06-voice-and-hardware.md),
-a USB microphone (the HAT's own mics don't work, see the same doc), and the
-app running at API_URL.
+a USB microphone (the HAT's own mics don't work, see the same doc), the app
+running at API_URL, and SPI enabled (`dtparam=spi=on`, then reboot) for the
+HAT's onboard LEDs — LEDs degrade to a no-op if unavailable.
 """
 
 import json
@@ -23,6 +31,9 @@ import wave
 import httpx
 from gpiozero import Button
 from vosk import KaldiRecognizer, Model
+
+from voice.hw.beep import END_BEEP, START_BEEP, find_hat_speaker_device, play
+from voice.hw.leds import RecordingIndicator
 
 BUTTON_GPIO = 17
 RECORD_SECONDS = 10
@@ -80,6 +91,8 @@ def transcribe(path: str, model: Model) -> str:
 def main() -> None:
     device = find_usb_mic_device()
     print(f"Using microphone: {device}")
+    speaker = find_hat_speaker_device()
+    print(f"Using speaker: {speaker or '(none found — beeps disabled)'}")
     model = Model(VOSK_MODEL_PATH)
 
     button = Button(BUTTON_GPIO, bounce_time=0.1)
@@ -89,7 +102,10 @@ def main() -> None:
 
     def on_press() -> None:
         print("Button pressed — recording...")
-        record(device, RECORDING_PATH, RECORD_SECONDS)
+        play(START_BEEP, speaker)
+        with RecordingIndicator():
+            record(device, RECORDING_PATH, RECORD_SECONDS)
+        play(END_BEEP, speaker)
         print("Transcribing...")
         text = transcribe(RECORDING_PATH, model)
         if not text:
