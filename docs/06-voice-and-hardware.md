@@ -126,6 +126,18 @@ GitHub API's branch list directly) once it catches up, or hands-on measurement
 confirmed-working speaker output.** Revisit later if useful (e.g. a wake-word mic
 array), not blocking.
 
+**Considered and rejected: downgrading the kernel to v6.13** to run the real
+`seeed-voicecard` driver instead of the generic overlay. Decided against it —
+Raspberry Pi OS doesn't treat kernel downgrades as a first-class supported path (no
+plain `apt install` to an older version; would mean pinning archived packages or
+`rpi-update` to a specific old commit, both explicitly discouraged for anything but
+throwaway testing), it's a 5-minor-version jump back that could destabilize things
+that *are* working today (SPI/LEDs, `lgpio`/`rpi-lgpio` for GPIO, both systemd units,
+the boot-race fix — all verified against the current kernel, none re-verified against
+an old one), and even after all that there's no guarantee it actually fixes capture on
+this specific clone board. The only upside would be dropping the USB dongle — cosmetic,
+not functional. Not a good trade for a system that's currently working end-to-end.
+
 One more data point before giving up on the HAT's own input: plugging a wired headset
 mic into the HAT's audio jack (the pins the overlay's own routing table maps to
 `"Mic Jack"` — see the hypothesis above) gave the **exact same flat noise floor** as
