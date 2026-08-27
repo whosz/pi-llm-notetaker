@@ -1,6 +1,28 @@
-{% for note in notes %} {% include "partials/note_card.html" %} {% else %}
-<p class="text-muted-foreground">No notes yet.</p>
-{% endfor %} {% if notes|length == limit %}
+{% for note in notes %} {% include "partials/note_card.html" %} {% else %} {%
+if q or type %}
+<section class="empty">
+  <header>
+    <figure>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+    </figure>
+    <h3>No matching notes</h3>
+    <p>Try a different search{% if type %} or category{% endif %}.</p>
+  </header>
+  <footer>
+    <a href="/" class="btn" data-variant="outline" data-size="sm">Clear filters</a>
+  </footer>
+</section>
+{% else %}
+<section class="empty">
+  <header>
+    <figure>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" /><path d="M2 6h4" /><path d="M2 10h4" /><path d="M2 14h4" /><path d="M2 18h4" /><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /></svg>
+    </figure>
+    <h3>No notes yet</h3>
+    <p>Type something above and it'll show up here.</p>
+  </header>
+</section>
+{% endif %} {% endfor %} {% if notes|length == limit %}
 <button
   type="button"
   class="btn w-full"
