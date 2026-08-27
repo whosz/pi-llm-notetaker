@@ -16,11 +16,30 @@ import wave
 RATE = 16000
 
 
+def _envelope(i: int, n: int, fade: int) -> float:
+    """Linear fade in/out — a tone switched on/off instantly clicks and
+    sounds harsh; ramping the first/last `fade` samples smooths that out."""
+    if i < fade:
+        return i / fade
+    if i > n - fade:
+        return (n - i) / fade
+    return 1.0
+
+
 def _tone(freq: float, duration: float, volume: float = 0.28) -> bytes:
-    """Synthesize a mono 16-bit PCM sine tone as WAV bytes."""
+    """Synthesize a mono 16-bit PCM sine tone as WAV bytes, faded in/out."""
     n = int(RATE * duration)
+    fade = int(RATE * 0.04)  # 40ms fade in/out
     frames = b"".join(
-        struct.pack("<h", int(volume * 32767 * math.sin(2 * math.pi * freq * t / RATE)))
+        struct.pack(
+            "<h",
+            int(
+                volume
+                * _envelope(t, n, fade)
+                * 32767
+                * math.sin(2 * math.pi * freq * t / RATE)
+            ),
+        )
         for t in range(n)
     )
     buf = io.BytesIO()
@@ -32,8 +51,8 @@ def _tone(freq: float, duration: float, volume: float = 0.28) -> bytes:
     return buf.getvalue()
 
 
-START_BEEP = _tone(880, 0.15)  # short high tone: "listening started"
-END_BEEP = _tone(440, 0.15)  # short lower tone: "listening stopped"
+START_BEEP = _tone(660, 0.18)  # soft mid tone: "listening started"
+END_BEEP = _tone(440, 0.18)  # soft lower tone: "listening stopped"
 
 
 def find_hat_speaker_device() -> str | None:
