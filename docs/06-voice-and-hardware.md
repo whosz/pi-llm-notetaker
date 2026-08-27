@@ -98,16 +98,33 @@ driver or connectivity problem.
 Card number also isn't stable across boots (seen both as card 2 and card 3) — resolve
 it fresh each time with `aplay -l`/`arecord -l`, don't hardcode it.
 
-**Hypothesis, unconfirmed:** the `wm8960-soundcard` overlay is explicitly written for a
-*different* board (`// Definitions for Waveshare WM8960` in its own `.dts` source —
-routed for an external mic jack, not onboard mics), so its DAPM power-up graph may
-never correctly enable whatever the ReSpeaker/Keyestudio board's mics actually need,
-even though every mixer control *looks* settable and correct. Confirming this needs
-either the board-specific `seeed-voicecard` driver (once it supports a current kernel)
-or hands-on measurement (multimeter on the mic bias/input pins) — not further blind
-remote mixer tweaking. **Decision: move on with a USB microphone for stage 6's STT
-input; keep the HAT for its confirmed-working speaker output.** Revisit the onboard
-mics later if useful (e.g. for a wake-word mic array), not blocking.
+**Hypothesis #1, disproven:** originally suspected the `wm8960-soundcard` overlay was
+written for a *different* board and routed wrong. Diffed it against Seeed's own
+original `seeed-2mic-voicecard-overlay.dts` — the mic routing is **byte-identical**
+(`LINPUT1`/`LINPUT3`/`RINPUT1`/`RINPUT2` → `"Mic Jack"` in both). Not the cause.
+
+**Hypothesis #2, tried, made it worse:** a 2025 comment on
+[raspberrypi/linux#4384](https://github.com/raspberrypi/linux/issues/4384) (a near-identical
+"WM8960 + ReSpeaker capture is garbage" report) points out that routing connects the mic
+to *four* boost-mixer inputs (LINPUT1/3, RINPUT1/2) when the board's schematic only
+wires two (LINPUT1/RINPUT1) — theory being the other two float and inject noise. Also no
+`MICBIAS` control is exposed anywhere in `amixer -c N controls` output, on this driver.
+Tested the theory directly: decompiled the live `.dtbo` (`dtc -I dtb -O dts`), rebuilt a
+variant overlay with only `LINPUT1`/`RINPUT1` routed (dropped `LINPUT3`/`RINPUT2`),
+loaded it as a separate `dtoverlay=` (not overwriting the working one — easy to revert).
+Result: **worse, not better** — full-scale clipping (RMS ~6000–12000/32768) in complete
+silence, even with input boost gain at 0. That's not amplified noise, it's a different
+failure mode entirely (self-oscillation or a DAPM power-sequencing glitch from removing
+those paths) — reverted immediately, back to the original overlay/config.
+
+Confirming the mic-bias/wiring theory for real needs either the board-specific
+`seeed-voicecard` driver (**still capped at kernel v6.13** as of this check — no v6.14+
+branch exists despite the repo's landing page implying otherwise, verified against the
+GitHub API's branch list directly) once it catches up, or hands-on measurement
+(multimeter on the mic bias/input pins) — not further blind remote overlay surgery.
+**Decision unchanged: USB microphone for stage 6's STT input; keep the HAT for its
+confirmed-working speaker output.** Revisit later if useful (e.g. a wake-word mic
+array), not blocking.
 
 One more data point before giving up on the HAT's own input: plugging a wired headset
 mic into the HAT's audio jack (the pins the overlay's own routing table maps to
