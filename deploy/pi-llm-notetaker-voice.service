@@ -2,6 +2,12 @@
 Description=PiLLm Note Taker button->mic->LLM demo (prototype, see voice/button_listen_demo.py)
 After=network.target pi-llm-notetaker.service sound.target
 Wants=pi-llm-notetaker.service
+# Safety net: the script itself retries device lookup for ~30s (see
+# wait_for_device in button_listen_demo.py), but keep a generous restart
+# budget too so an unrelated startup hiccup doesn't need a full reboot to
+# clear (default is 5 restarts/10s, which this used to blow through in ~15s).
+StartLimitIntervalSec=300
+StartLimitBurst=10
 
 [Service]
 User=matt

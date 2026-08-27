@@ -24,7 +24,6 @@ HAT's onboard LEDs — LEDs degrade to a no-op if unavailable.
 
 import json
 import os
-import re
 import subprocess
 import wave
 
@@ -32,6 +31,7 @@ import httpx
 from gpiozero import Button
 from vosk import KaldiRecognizer, Model
 
+from voice.hw.audio_devices import find_usb_mic_device, wait_for_device
 from voice.hw.beep import END_BEEP, START_BEEP, find_hat_speaker_device, play
 from voice.hw.leds import RecordingIndicator
 
@@ -40,18 +40,6 @@ RECORD_SECONDS = 10
 VOSK_MODEL_PATH = os.path.expanduser("~/voice-test/model")
 API_URL = "http://localhost:8000/api/notes"
 RECORDING_PATH = "/tmp/button_note.wav"
-
-
-def find_usb_mic_device() -> str:
-    """Card numbers shift across reboots/replugs — look it up instead of
-    hardcoding it."""
-    result = subprocess.run(
-        ["arecord", "-l"], capture_output=True, text=True, check=True
-    )
-    match = re.search(r"card (\d+): .*USB Audio", result.stdout)
-    if not match:
-        raise RuntimeError("No USB microphone found in `arecord -l` output")
-    return f"plughw:{match.group(1)},0"
 
 
 def record(device: str, path: str, seconds: int) -> None:
@@ -89,9 +77,11 @@ def transcribe(path: str, model: Model) -> str:
 
 
 def main() -> None:
-    device = find_usb_mic_device()
+    device = wait_for_device(find_usb_mic_device, "USB microphone")
+    if device is None:
+        raise SystemExit("No USB microphone found (arecord -l) after 30s — giving up.")
     print(f"Using microphone: {device}")
-    speaker = find_hat_speaker_device()
+    speaker = wait_for_device(find_hat_speaker_device, "HAT speaker", timeout=10)
     print(f"Using speaker: {speaker or '(none found — beeps disabled)'}")
     model = Model(VOSK_MODEL_PATH)
 
