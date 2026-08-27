@@ -1,0 +1,14 @@
+[Unit]
+Description=PiLLm Note Taker web app
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+User=matt
+WorkingDirectory=/home/matt/pi-llm-notetaker
+ExecStart=/home/matt/pi-llm-notetaker/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
