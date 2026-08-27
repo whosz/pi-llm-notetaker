@@ -1,6 +1,6 @@
 from app.llm.parser import parse_classification
 from app.llm.worker import process_note
-from app.models import Note
+from app.models import ListItem, Note
 
 
 def test_parse_valid_json():
@@ -73,6 +73,32 @@ async def test_worker_merges_into_recent_shopping_note(client, monkeypatch):
     data = resp.json()
     assert data["items"] == []
     assert data["payload"]["merged_into_note_id"] == existing_id
+
+
+async def test_worker_dedupes_items_on_merge(client, monkeypatch):
+    async def fake_classify(system_prompt, note_text):
+        return '{"type": "shopping", "title": "Groceries", "items": ["Milk", "eggs"], "confidence": 0.9}'
+
+    monkeypatch.setattr("app.llm.worker.classify", fake_classify)
+
+    async with client.session_maker() as session:
+        existing = Note(
+            raw_text="buy milk", type="shopping", title="Groceries", status="processed"
+        )
+        session.add(existing)
+        await session.commit()
+        await session.refresh(existing)
+        existing_id = existing.id
+        session.add(ListItem(note_id=existing_id, text="milk", position=0))
+        await session.commit()
+
+    resp = await client.post("/api/notes", json={"text": "milk and eggs"})
+    new_id = resp.json()["id"]
+
+    await process_note(new_id, session_maker=client.session_maker)
+
+    resp = await client.get(f"/api/notes/{existing_id}")
+    assert [i["text"] for i in resp.json()["items"]] == ["milk", "eggs"]
 
 
 async def test_worker_falls_back_to_note_type_on_repeated_garbage(client, monkeypatch):

@@ -101,14 +101,21 @@ async def process_note(
 
         if result.type == "shopping" and result.items:
             target = await _find_recent_shopping_note(db, exclude_id=note.id)
+            list_note = target or note
+            # Dedupe against what's already on the list, and within this
+            # batch itself (a voice note can repeat a word, or overlap with
+            # an earlier one merged into the same list).
+            seen = {item.text.strip().lower() for item in list_note.items}
+            position = len(list_note.items)
+            for text in result.items:
+                key = text.strip().lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                db.add(ListItem(note_id=list_note.id, text=text, position=position))
+                position += 1
             if target is not None:
-                start = len(target.items)
-                for i, text in enumerate(result.items):
-                    db.add(ListItem(note_id=target.id, text=text, position=start + i))
                 payload["merged_into_note_id"] = target.id
-            else:
-                for i, text in enumerate(result.items):
-                    db.add(ListItem(note_id=note.id, text=text, position=i))
 
         note.payload = payload
         note.status = "processed"
