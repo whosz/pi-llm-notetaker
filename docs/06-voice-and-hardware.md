@@ -13,11 +13,12 @@ into the pins like an LED. Realistic options (from simplest):
 |---|---|---|---|
 | **A. USB microphone** | ~$10–20 | ⭐ easy | Zero soldering or configuration. E.g. a mini USB mic or a conference mic with noise cancellation. **Recommended starting point.** |
 | **B. I2S microphone on GPIO pins** (e.g. **INMP441**, ~$5) | cheap | ⭐⭐⭐ | "Real" wiring to the pins, requires overlay configuration and sometimes soldering headers |
-| **C. ReSpeaker 2-Mics Pi HAT** (~$20–30) | medium | ⭐⭐ | GPIO hat: **2 microphones + button + 3 RGB LEDs (APA102) + speaker output, all in one**. Perfectly covers this project's requirements. **Partially working** on a Keyestudio clone (see below) — card enumerates and mixer is controllable, but mic capture is not yet producing real audio |
+| **C. ReSpeaker 2-Mics Pi HAT** (~$20–30) | medium | ⭐⭐ | GPIO hat: **2 microphones + button + 3 RGB LEDs (APA102) + speaker output, all in one** on paper. On a Keyestudio clone: **speaker output confirmed working**, but **mic capture doesn't work** (see below) — parked, use option A for the microphone instead |
 
-> 💡 If you want minimum hassle — **option C (ReSpeaker HAT)** gives you everything
-> this project needs right away (microphone, button, LEDs, audio out).
-> If you like building it yourself — option A (USB mic) + button and LED from the table below.
+> 💡 **Current plan:** option C's HAT for its speaker output (confirmed working) +
+> option A (USB mic) for the microphone, since the HAT's own mics aren't producing
+> audio on this board (see the write-up below) and the DNP jack on Seeed's schematic
+> means there's likely no external mic input on this HAT either.
 > 📚 [ReSpeaker 2-Mics Pi HAT documentation](https://wiki.seeedstudio.com/ReSpeaker_2_Mics_Pi_HAT/)
 
 ### Option C in practice: Keyestudio/ReSpeaker 2-Mics HAT, mainline overlay (no driver compile)
@@ -68,23 +69,77 @@ firmware** — same WM8960 codec chip, zero compilation:
    Persist with `sudo alsactl store` once you're happy with the mixer settings, so
    they survive a reboot (replace `N` above with the card number from `aplay -l`).
 
-**⚠️ Open issue: mic capture is not producing real audio.** The card enumerates
-correctly for capture and the mixer is fully controllable (confirmed via `amixer -c N`),
-but recordings are digital silence (`max≈3/32768`) after a brief power-on transient in
-the first ~1 second, regardless of speech, volume, mic input boost (+29 dB), or ADC
-capture gain (+30 dB) — all tried, none changed the result. Also tried powering the HAT
-separately via its onboard micro-USB port (in case GPIO-only power wasn't enough for
-the analog/mic-bias side) — no change. Output and input are on the same codec/overlay,
-so this is specifically a capture-path (mic bias?) issue, not a general driver problem.
+**⚠️ Known issue, parked: mic capture doesn't produce real audio — use a USB mic
+(option A) instead.** Everything reasonable was tried remotely, none of it worked:
+
+- Correct input pins per Seeed's own schematic (LINPUT1/RINPUT1 → MIC1/MIC2) — confirmed
+  by pulling the actual `.sch` PDF, not guessed
+- Max gain on every stage: input boost (+29 dB), ADC capture gain (+30 dB), all six
+  boost-mixer inputs (LINPUT1/2/3, RINPUT1/2/3) enabled simultaneously, not just the
+  correct pair
+- Powering the HAT separately via its own micro-USB port, in case GPIO-only power
+  wasn't enough for the analog/mic-bias side
+- Recording in stereo and inspecting the left and right channels **separately** (in
+  case a mono downmix was hiding a working channel) — both channels showed the exact
+  same flat, non-speech-correlated noise floor (~100–190/32768, no variation whether
+  someone was talking or not)
+- Considered installing the board-specific `seeed-voicecard` driver instead of the
+  generic `wm8960-soundcard` overlay (which is written for a different physical board —
+  see below) — decided against it given the kernel version gap (its newest branch
+  targets v6.13, we're on 6.18.x) once a USB mic became the simpler path forward
+- The schematic's only external-audio-input footprint (`AUDIO-JACK-8P-SMD`, an 8-pin
+  combo jack) is marked **DNP** (Do Not Populate) in Seeed's design — so there may not
+  be a 3.5 mm mic input on this board at all to plug an external mic into, clone or not
+
+Output and input share the same codec/overlay/I2C bus, and output works perfectly, so
+this is specifically a capture-path (mic bias? board wiring?) issue, not a general
+driver or connectivity problem.
 
 Card number also isn't stable across boots (seen both as card 2 and card 3) — resolve
 it fresh each time with `aplay -l`/`arecord -l`, don't hardcode it.
 
-Current hypothesis: the Keyestudio clone may differ from Seeed's original ReSpeaker
-schematic in a way the generic `wm8960-soundcard` overlay (built for a different board,
-Waveshare's WM8960 HAT) doesn't account for — e.g. mic bias routing. Needs a hands-on
-session (multimeter on the mic bias/input pins) rather than further blind remote mixer
-tweaking. Not blocking — plan stage 6 (this HAT's button + LEDs) is unstarted anyway.
+**Hypothesis, unconfirmed:** the `wm8960-soundcard` overlay is explicitly written for a
+*different* board (`// Definitions for Waveshare WM8960` in its own `.dts` source —
+routed for an external mic jack, not onboard mics), so its DAPM power-up graph may
+never correctly enable whatever the ReSpeaker/Keyestudio board's mics actually need,
+even though every mixer control *looks* settable and correct. Confirming this needs
+either the board-specific `seeed-voicecard` driver (once it supports a current kernel)
+or hands-on measurement (multimeter on the mic bias/input pins) — not further blind
+remote mixer tweaking. **Decision: move on with a USB microphone for stage 6's STT
+input; keep the HAT for its confirmed-working speaker output.** Revisit the onboard
+mics later if useful (e.g. for a wake-word mic array), not blocking.
+
+One more data point before giving up on the HAT's own input: plugging a wired headset
+mic into the HAT's audio jack (the pins the overlay's own routing table maps to
+`"Mic Jack"` — see the hypothesis above) gave the **exact same flat noise floor** as
+the onboard mics, on both channels, across native `hw:` recording at multiple sample
+rates and durations (ruling out `plughw`/mono-downmix/rate/duration as causes on the
+*recording* side too). Same symptom with a completely different, known-good mic source
+points at the ADC/capture path itself, not specifically at the onboard mic wiring.
+
+### ✅ Confirmed working: USB microphone (option A)
+
+A cheap USB mic (a Sony SingStar USB mic, i.e. a generic USB Audio Class device) just
+works — no overlay, no driver, no config.txt changes:
+
+```bash
+arecord -l                          # → new card, e.g. "card 4: U032712189 [USBMIC ...]"
+amixer -c 4 sset 'Mic' 100%         # default capture level is ~56%, too quiet
+arecord -D plughw:4,0 -d 5 -f S16_LE -r 16000 -c 1 test.wav
+```
+(replace `4` with whatever card number `arecord -l` shows). Real, speech-correlated
+amplitude (thousands, dynamically varying) confirmed by ear and by inspecting the
+recorded samples — a completely different signature from the flat HAT noise floor.
+
+**Full pipeline tested end-to-end**, using this USB mic: record → transcribe with
+[Vosk](https://alphacephei.com/vosk/) (`vosk-model-small-pl-0.22`, installed via
+`uv run --with vosk`, no venv needed) → classify the transcript through Ollama
+(`qwen2.5:1.5b`, same `/api/chat` call as `docs/02-local-llm.md`). Spoken "zakup mleko
+i chleb" → `{"type": "shopping", "title": "Zakup mleka i chlebu", "items": ["mleko",
+"chleb"]}` — correct. Note: the model got it wrong (unrelated hallucinated content) on
+2 of 3 attempts with our bare-bones test prompt (no few-shot examples) — expected per
+`CLAUDE.md`'s "the model can return garbage" caveat, and exactly why plan stage 2 calls
+for few-shot examples and defensive retry-on-failure parsing, not a pipeline bug.
 
 This overlay only covers **audio** (both mics + speaker output) — it does not know
 about the HAT's physical **button** or its **3 APA102 RGB LEDs**, which are a separate
@@ -204,14 +259,15 @@ Additional performance rules (implemented in plan stage 6):
 
 ## Checklist
 
-- [x] `arecord -l` sees the microphone (card enumerates) — ⚠️ but recorded audio is
-      silence, see the open issue above; not actually working yet
+- [x] `arecord -l` sees the microphone; test recording actually captures audio — true
+      with a **USB mic** (see above); the HAT's onboard mics still don't, parked
 - [x] `aplay` plays sound on the selected output — confirmed audible, out of the
-      **speaker** connector specifically (headphone output muted), see step 5 above
+      HAT's **speaker** connector specifically (headphone output muted), see step 5 above
 - [ ] The button changes state (test with a gpiozero script); the RGB LED shows red, green,
       and blue individually, then does `.pulse()` — confirms wiring and cathode/anode polarity
       (N/A if using the HAT's own button/LEDs — that's separate SPI/GPIO work, still open)
-- [ ] The STT model is downloaded and tested on a recording
+- [x] The STT model is downloaded and tested on a recording — Vosk PL, full pipeline
+      (mic → Vosk → Ollama) verified end-to-end, see above
 - [ ] Piper speaks a test sentence: `echo "Hi, this is your Pi" | piper ... | aplay`
 
 Next: plan stages [06 (voice service)](../plan/06-voice-service.md) and [07 (wizard)](../plan/07-setup-wizard.md)
