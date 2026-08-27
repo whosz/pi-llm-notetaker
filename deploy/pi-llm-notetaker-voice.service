@@ -1,0 +1,15 @@
+[Unit]
+Description=PiLLm Note Taker button->mic->LLM demo (prototype, see voice/button_listen_demo.py)
+After=network.target pi-llm-notetaker.service sound.target
+Wants=pi-llm-notetaker.service
+
+[Service]
+User=matt
+WorkingDirectory=/home/matt/pi-llm-notetaker
+ExecStart=/home/matt/pi-llm-notetaker/.venv/bin/python3 -m voice.button_listen_demo
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

@@ -25,3 +25,12 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.1",
 ]
+# Pi-only (GPIO/audio hardware libs) — not installed by a bare `uv sync`,
+# only via `uv sync --group voice` on the Pi itself. See voice/button_listen_demo.py.
+voice = [
+    "gpiozero>=2.0.1",
+    "vosk>=0.3.45",
+    "lgpio>=0.2.2.0",
+    "rpi-lgpio>=0.6",
+    "apa102-pi>=2.5.4",
+]

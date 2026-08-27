@@ -10,9 +10,10 @@ if ! systemctl is-enabled --quiet ollama 2>/dev/null; then
 fi
 
 uv sync
+uv sync --group voice  # Pi-only hardware libs (gpiozero, vosk, lgpio, apa102-pi, rpi-lgpio)
 
-sudo cp deploy/pi-llm-notetaker.service /etc/systemd/system/
+sudo cp deploy/pi-llm-notetaker.service deploy/pi-llm-notetaker-voice.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now pi-llm-notetaker
+sudo systemctl enable --now pi-llm-notetaker pi-llm-notetaker-voice
 
-systemctl status --no-pager pi-llm-notetaker
+systemctl status --no-pager pi-llm-notetaker pi-llm-notetaker-voice
